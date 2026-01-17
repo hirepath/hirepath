@@ -18,7 +18,7 @@ export function Header({ view, onViewChange, onAddNew, onOpenResume }: HeaderPro
               <span className="text-primary-foreground font-bold text-lg">A</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">ApplyTrack</h1>
+              <h1 className="text-xl font-bold text-foreground">HirePath</h1>
               <p className="text-xs text-muted-foreground">Job Application Organizer</p>
             </div>
           </div>
