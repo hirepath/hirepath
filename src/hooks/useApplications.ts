@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Application, MasterResume, Communication } from '@/types/application';
 
-const STORAGE_KEY = 'applytrack_applications';
-const RESUME_KEY = 'applytrack_resume';
+const STORAGE_KEY = 'hirepath_applications';
+const RESUME_KEY = 'hirepath_resume';
 
 const sampleApplications: Application[] = [
   {
