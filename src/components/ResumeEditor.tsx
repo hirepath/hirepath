@@ -7,6 +7,10 @@ import { FileText, Save, Copy, Check, X, Upload, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 interface ResumeEditorProps {
   resume: MasterResume;
@@ -37,14 +41,89 @@ export function ResumeEditor({ resume, onSave, onClose }: ResumeEditorProps) {
     fileInputRef.current?.click();
   };
 
+  const autoFormatResume = (text: string): string => {
+    // Split into lines and clean up
+    let lines = text.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0);
+    
+    let result: string[] = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const prevLine = i > 0 ? lines[i - 1] : '';
+      const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
+      
+      // Detect name (first line or contains email/phone at start)
+      if ((i === 0 || i === 1) && line.length < 100 && /^[A-Z][a-z]+ [A-Z]/.test(line)) {
+        result.push(`# ${line}`);
+        result.push('');
+        continue;
+      }
+      
+      // Detect email/phone/links line
+      if (/@|linkedin|github|\(\d{3}\)/.test(line) && line.length < 150) {
+        result.push(line);
+        result.push('');
+        continue;
+      }
+      
+      // Detect section headers (ALL CAPS words like EDUCATION, WORK EXPERIENCE, etc.)
+      const sectionMatch = line.match(/^([A-Z][A-Z\s]+)(?:\s|$)/);
+      if (sectionMatch && sectionMatch[1].length > 3 && sectionMatch[1].length < 30) {
+        const section = sectionMatch[1].trim();
+        const restOfLine = line.substring(sectionMatch[0].length).trim();
+        
+        result.push('');
+        result.push(`## ${section}`);
+        result.push('');
+        
+        if (restOfLine) {
+          result.push(restOfLine);
+        }
+        continue;
+      }
+      
+      // Detect job titles or degree (contains dates or GPA)
+      if (/\d{4}|GPA:|Sep \d{4}|Jan \d{4}|May \d{4}|Mar \d{4}|Apr \d{4}|May \d{4}|Jun \d{4}|Jul \d{4}|Aug \d{4}|Sep \d{4}|Oct \d{4}|Nov \d{4}|Dec \d{4}/.test(line)) {
+        // This might be a title line
+        result.push('');
+        result.push(`### ${line}`);
+        result.push('');
+        continue;
+      }
+      
+      // Detect bullet point indicators
+      if (line.startsWith('•') || line.startsWith('-') || line.startsWith('*')) {
+        result.push(`- ${line.substring(1).trim()}`);
+        continue;
+      }
+      
+      // If this line starts with a capital and previous was empty or a header, might be a description
+      // Make it a bullet point
+      if (/^[A-Z]/.test(line) && result.length > 0) {
+        const lastNonEmpty = result.filter(l => l.trim().length > 0).slice(-1)[0];
+        if (lastNonEmpty && lastNonEmpty.startsWith('###')) {
+          result.push(`- ${line}`);
+          continue;
+        }
+      }
+      
+      // Default: add as regular line
+      result.push(line);
+    }
+    
+    return result.join('\n');
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
+  
     setIsUploading(true);
     const fileType = file.type;
     const fileName = file.name.toLowerCase();
-
+  
     try {
       if (fileType === 'text/plain' || fileName.endsWith('.txt')) {
         // Handle plain text files
@@ -52,10 +131,71 @@ export function ResumeEditor({ resume, onSave, onClose }: ResumeEditorProps) {
         setContent(text);
         toast.success('Resume uploaded successfully');
       } else if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
-        // For PDF files - use pdf.js or similar library
-        toast.info('PDF upload detected. Please install pdf-parse library or copy/paste content.');
-        // You'll need to add: npm install pdfjs-dist
-        // Then implement PDF text extraction
+        // Handle PDF files with better text extraction
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+        
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          
+          // Extract text with better spacing handling
+          let lastY = -1;
+          let pageLines: string[] = [];
+          let currentLine = '';
+          
+          textContent.items.forEach((item: any) => {
+            const y = item.transform[5]; // Y position
+            const text = item.str;
+            
+            // New line detected (significant Y position change)
+            if (lastY !== -1 && Math.abs(y - lastY) > 3) {
+              if (currentLine.trim()) {
+                pageLines.push(currentLine.trim());
+              }
+              currentLine = text;
+            } else {
+              // Add space between words if needed
+              if (currentLine && !currentLine.endsWith(' ') && !text.startsWith(' ')) {
+                currentLine += ' ';
+              }
+              currentLine += text;
+            }
+            
+            lastY = y;
+          });
+          
+          // Add the last line
+          if (currentLine.trim()) {
+            pageLines.push(currentLine.trim());
+          }
+          
+          fullText += pageLines.join('\n') + '\n\n';
+        }
+        
+        // CLEAN UP WEIRD SPACING
+        // Remove spaces between individual letters (like "L a n g u a g e s")
+        fullText = fullText.replace(/\b(\w)\s+(\w)\s+(\w)/g, (match) => {
+          // If we find a pattern of letters with spaces, remove the spaces
+          return match.replace(/\s+/g, '');
+        });
+        
+        // More aggressive cleanup for longer patterns
+        fullText = fullText.split('\n').map(line => {
+          // If a line has a lot of single-letter-space patterns, clean it up
+          const spaceCount = (line.match(/\b\w\s+\w\b/g) || []).length;
+          if (spaceCount > 3) {
+            // This line has weird spacing, fix it
+            return line.replace(/\b(\w)\s+/g, '$1');
+          }
+          return line;
+        }).join('\n');
+        
+        // Auto-format the extracted text
+        const formattedText = autoFormatResume(fullText);
+        setContent(formattedText);
+        toast.success('PDF uploaded and formatted successfully!');
       } else if (
         fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
         fileName.endsWith('.docx')
@@ -85,67 +225,92 @@ export function ResumeEditor({ resume, onSave, onClose }: ResumeEditorProps) {
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
       const margin = 20;
-      const maxWidth = pageWidth - 2 * margin;
+      const maxWidth = pageWidth - (2 * margin);
       let yPosition = margin;
-
-      // Split content into lines
-      const lines = content.split('\n');
-
-      doc.setFont('helvetica');
-
-      lines.forEach((line, index) => {
-        // Check if we need a new page
-        if (yPosition > pageHeight - margin) {
+  
+      const checkNewPage = () => {
+        if (yPosition > pageHeight - 40) {
           doc.addPage();
           yPosition = margin;
+          return true;
         }
-
+        return false;
+      };
+  
+      // Split content into lines
+      const lines = content.split('\n');
+  
+      lines.forEach((line) => {
+        // Skip empty lines but add small spacing
+        if (line.trim() === '') {
+          yPosition += 3;
+          return;
+        }
+  
+        checkNewPage();
+  
         // Handle markdown-style headers
         if (line.startsWith('# ')) {
-          // Main heading (H1)
-          doc.setFontSize(20);
+          // Main heading (Name)
+          doc.setFontSize(22);
           doc.setFont('helvetica', 'bold');
           const text = line.substring(2).trim();
-          const splitText = doc.splitTextToSize(text, maxWidth);
-          doc.text(splitText, margin, yPosition);
-          yPosition += splitText.length * 8 + 3;
+          const wrappedText = doc.splitTextToSize(text, maxWidth);
+          doc.text(wrappedText, pageWidth / 2, yPosition, { align: 'center' });
+          yPosition += wrappedText.length * 8 + 5;
         } else if (line.startsWith('## ')) {
-          // Section heading (H2)
-          doc.setFontSize(16);
-          doc.setFont('helvetica', 'bold');
-          const text = line.substring(3).trim();
-          const splitText = doc.splitTextToSize(text, maxWidth);
-          doc.text(splitText, margin, yPosition);
-          yPosition += splitText.length * 7 + 2;
-        } else if (line.startsWith('### ')) {
-          // Subsection heading (H3)
+          // Section heading
+          yPosition += 5;
           doc.setFontSize(14);
           doc.setFont('helvetica', 'bold');
+          const text = line.substring(3).trim();
+          const wrappedText = doc.splitTextToSize(text, maxWidth);
+          doc.text(wrappedText, margin, yPosition);
+          yPosition += wrappedText.length * 7 + 3;
+        } else if (line.startsWith('### ')) {
+          // Subsection heading (Job titles, degrees)
+          yPosition += 3;
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
           const text = line.substring(4).trim();
-          const splitText = doc.splitTextToSize(text, maxWidth);
-          doc.text(splitText, margin, yPosition);
-          yPosition += splitText.length * 6 + 1;
+          const wrappedText = doc.splitTextToSize(text, maxWidth);
+          doc.text(wrappedText, margin, yPosition);
+          yPosition += wrappedText.length * 6 + 2;
         } else if (line.startsWith('- ') || line.startsWith('* ')) {
           // Bullet points
-          doc.setFontSize(11);
+          checkNewPage();
+          doc.setFontSize(10);
           doc.setFont('helvetica', 'normal');
-          const text = '• ' + line.substring(2).trim();
-          const splitText = doc.splitTextToSize(text, maxWidth - 5);
-          doc.text(splitText, margin + 5, yPosition);
-          yPosition += splitText.length * 5;
-        } else if (line.trim() === '') {
-          // Empty line - add small spacing
-          yPosition += 3;
+          const text = line.substring(2).trim();
+          const bulletX = margin + 3;
+          const textX = margin + 8;
+          
+          // Draw bullet using unicode
+          doc.text('\u2022', bulletX, yPosition);
+          
+          // Draw text with proper wrapping
+          const wrappedText = doc.splitTextToSize(text, maxWidth - 10);
+          doc.text(wrappedText, textX, yPosition);
+          yPosition += wrappedText.length * 5;
         } else {
           // Regular text
-          doc.setFontSize(11);
+          checkNewPage();
+          doc.setFontSize(10);
           doc.setFont('helvetica', 'normal');
-          const splitText = doc.splitTextToSize(line, maxWidth);
-          doc.text(splitText, margin, yPosition);
-          yPosition += splitText.length * 5;
+          
+          // Check if it's contact info (center it)
+          if (/@|linkedin|github|\(\d{3}\)/.test(line)) {
+            const wrappedText = doc.splitTextToSize(line, maxWidth);
+            doc.text(wrappedText, pageWidth / 2, yPosition, { align: 'center' });
+            yPosition += wrappedText.length * 5 + 3;
+          } else {
+            const wrappedText = doc.splitTextToSize(line, maxWidth);
+            doc.text(wrappedText, margin, yPosition);
+            yPosition += wrappedText.length * 5;
+          }
         }
       });
-
+  
       // Save the PDF
       const fileName = `resume_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
       doc.save(fileName);
