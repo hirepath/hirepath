@@ -1,5 +1,7 @@
+// src/components/Header.tsx
+
 import { Button } from '@/components/ui/button';
-import { Plus, FileText, LayoutGrid, List, Search } from 'lucide-react';
+import { Plus, FileText, LayoutGrid, List, Search, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
@@ -7,10 +9,12 @@ interface HeaderProps {
   onViewChange: (view: 'kanban' | 'list') => void;
   onAddNew: () => void;
   onOpenResume: () => void;
+  onOpenTailor: () => void; // NEW: Add tailor dialog handler
 }
 
-export function Header({ view, onViewChange, onAddNew, onOpenResume }: HeaderProps) {
+export function Header({ view, onViewChange, onAddNew, onOpenResume, onOpenTailor }: HeaderProps) {
   const navigate = useNavigate();
+  
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50">
       <div className="container max-w-7xl mx-auto px-4 py-4">
@@ -55,6 +59,17 @@ export function Header({ view, onViewChange, onAddNew, onOpenResume }: HeaderPro
             <Button variant="outline" size="sm" onClick={onOpenResume} className="gap-1.5">
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Resume</span>
+            </Button>
+
+            {/* NEW: Tailor Resume Button */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={onOpenTailor} 
+              className="gap-1.5 border-primary/30 hover:bg-primary/10"
+            >
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="hidden sm:inline">Tailor Resume</span>
             </Button>
 
             <Button size="sm" onClick={onAddNew} className="gap-1.5">

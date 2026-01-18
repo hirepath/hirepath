@@ -14,10 +14,7 @@ interface TailorResumeResponse {
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-
-// Free Groq models (no credit card required)
-const MODEL = 'llama-3.1-70b-versatile'; // Fast and smart
-// Alternative: 'mixtral-8x7b-32768' for longer context
+const MODEL = 'llama-3.1-70b-versatile';
 
 const SYSTEM_PROMPT = `You are an expert resume writer and ATS optimization specialist. Your task is to tailor resumes to specific job descriptions while:
 
@@ -46,7 +43,7 @@ export async function tailorResumeWithAI({
   company,
 }: TailorResumeRequest): Promise<TailorResumeResponse> {
   if (!GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY is not configured. Please add it to your .env file.');
+    throw new Error('GROQ_API_KEY is not configured. Please add VITE_GROQ_API_KEY to your .env file and restart the dev server.');
   }
 
   const userPrompt = `Job Title: ${jobTitle}
@@ -83,7 +80,7 @@ Please tailor this resume for the ${jobTitle} position at ${company}. Focus on h
             content: userPrompt,
           },
         ],
-        temperature: 0.3, // Lower temperature for more consistent, focused output
+        temperature: 0.3,
         max_tokens: 4000,
         top_p: 0.9,
       }),
@@ -103,7 +100,6 @@ Please tailor this resume for the ${jobTitle} position at ${company}. Focus on h
       throw new Error('No response from AI model');
     }
 
-    // Extract changes (simple diff summary)
     const changes = generateChangeSummary(masterResume, tailoredResume);
 
     return {
@@ -116,23 +112,13 @@ Please tailor this resume for the ${jobTitle} position at ${company}. Focus on h
   }
 }
 
-// Helper function to generate a summary of changes
 function generateChangeSummary(original: string, tailored: string): string[] {
   const changes: string[] = [];
 
-  // Check for keyword additions
-  const originalLower = original.toLowerCase();
-  const tailoredLower = tailored.toLowerCase();
-
-  // Simple heuristics for changes
   if (tailored.length > original.length * 1.1) {
     changes.push('Expanded descriptions to highlight relevant experience');
   } else if (tailored.length < original.length * 0.9) {
     changes.push('Condensed resume to focus on key qualifications');
-  }
-
-  if (tailoredLower.includes('achieved') && !originalLower.includes('achieved')) {
-    changes.push('Enhanced achievement statements');
   }
 
   changes.push('Optimized for ATS keyword matching');
@@ -140,45 +126,4 @@ function generateChangeSummary(original: string, tailored: string): string[] {
   changes.push('Adjusted professional summary for this role');
 
   return changes;
-}
-
-// Alternative: OpenRouter (free tier, multiple models)
-export async function tailorResumeWithOpenRouter({
-  masterResume,
-  jobDescription,
-  jobTitle,
-  company,
-}: TailorResumeRequest): Promise<TailorResumeResponse> {
-  const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
-  
-  if (!OPENROUTER_API_KEY) {
-    throw new Error('OPENROUTER_API_KEY is not configured.');
-  }
-
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': window.location.origin,
-    },
-    body: JSON.stringify({
-      model: 'meta-llama/llama-3.1-8b-instruct:free', // Free model
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: `Tailor this resume for ${jobTitle} at ${company}:\n\nJob Description:\n${jobDescription}\n\nResume:\n${masterResume}`,
-        },
-      ],
-    }),
-  });
-
-  const data = await response.json();
-  const tailoredResume = data.choices[0]?.message?.content || '';
-
-  return {
-    tailoredResume: tailoredResume.trim(),
-    changes: generateChangeSummary(masterResume, tailoredResume),
-  };
 }

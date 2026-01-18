@@ -4,12 +4,11 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 import {
-  X, Sparkles, Copy, Check, Download, AlertCircle,
-  FileText, Loader2, ArrowRight, CheckCircle2
+  X, Sparkles, Copy, Check, Download, AlertCircle, Loader2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { tailorResumeWithAI } from '@/services/resumeTailor.service';
@@ -19,24 +18,14 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 interface TailorResumeDialogProps {
   masterResume: string;
-  jobTitle: string;
-  company: string;
-  jobDescription?: string;
   onClose: () => void;
-  onApplyTailored: (tailoredResume: string) => void;
 }
 
-export function TailorResumeDialog({
-  masterResume,
-  jobTitle,
-  company,
-  jobDescription = '',
-  onClose,
-  onApplyTailored,
-}: TailorResumeDialogProps) {
-  const [jobDesc, setJobDesc] = useState(jobDescription);
+export function TailorResumeDialog({ masterResume, onClose }: TailorResumeDialogProps) {
+  const [jobTitle, setJobTitle] = useState('');
+  const [company, setCompany] = useState('');
+  const [jobDesc, setJobDesc] = useState('');
   const [tailoredResume, setTailoredResume] = useState('');
-  const [changes, setChanges] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -45,6 +34,11 @@ export function TailorResumeDialog({
   const handleTailor = async () => {
     if (!jobDesc.trim()) {
       toast.error('Please enter a job description');
+      return;
+    }
+
+    if (!jobTitle.trim() || !company.trim()) {
+      toast.error('Please enter job title and company name');
       return;
     }
 
@@ -65,7 +59,6 @@ export function TailorResumeDialog({
       });
 
       setTailoredResume(result.tailoredResume);
-      setChanges(result.changes);
       toast.success('Resume tailored successfully!');
     } catch (err: any) {
       console.error('Tailoring error:', err);
@@ -166,12 +159,6 @@ export function TailorResumeDialog({
     }
   };
 
-  const handleApply = () => {
-    onApplyTailored(tailoredResume);
-    toast.success('Tailored resume applied to this application');
-    onClose();
-  };
-
   return (
     <div className="fixed inset-0 bg-foreground/20 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
       <Card className="w-full max-w-7xl h-[90vh] flex flex-col animate-scale-in">
@@ -184,7 +171,7 @@ export function TailorResumeDialog({
             <div>
               <h2 className="text-lg font-semibold text-foreground">AI Resume Tailor</h2>
               <p className="text-xs text-muted-foreground">
-                {jobTitle} at {company}
+                Optimize your resume for any job posting
               </p>
             </div>
           </div>
@@ -193,106 +180,84 @@ export function TailorResumeDialog({
           </Button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden flex flex-col p-4 gap-4">
-          {/* Job Description Input */}
-          {!tailoredResume && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Job Description
-              </label>
-              <Textarea
-                value={jobDesc}
-                onChange={(e) => setJobDesc(e.target.value)}
-                placeholder="Paste the full job description here..."
-                className="h-32 resize-none font-mono text-sm"
-              />
-            </div>
-          )}
+        {/* Content - Two Column Layout */}
+        <div className="flex-1 overflow-hidden">
+          <div className={`h-full grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} divide-x divide-border`}>
+            
+            {/* LEFT: Job Description Input */}
+            <div className="flex flex-col p-6 overflow-hidden">
+              <h3 className="text-sm font-semibold text-foreground mb-4">Job Details</h3>
+              
+              <div className="space-y-4 mb-4">
+                <div className="space-y-2">
+                  <Label htmlFor="jobTitle">Job Title</Label>
+                  <Input
+                    id="jobTitle"
+                    value={jobTitle}
+                    onChange={(e) => setJobTitle(e.target.value)}
+                    placeholder="e.g., Senior React Developer"
+                    disabled={isLoading}
+                  />
+                </div>
 
-          {/* Error Display */}
-          {error && (
-            <Card className="p-3 bg-destructive/10 border-destructive/20">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm text-destructive font-medium">Error</p>
-                  <p className="text-sm text-destructive/80">{error}</p>
+                <div className="space-y-2">
+                  <Label htmlFor="company">Company Name</Label>
+                  <Input
+                    id="company"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    placeholder="e.g., Google"
+                    disabled={isLoading}
+                  />
                 </div>
               </div>
-            </Card>
-          )}
 
-          {/* Side-by-Side Comparison */}
-          {tailoredResume && (
-            <div className={`flex-1 grid ${isMobile ? 'grid-cols-1' : 'grid-cols-2'} gap-4 overflow-hidden`}>
-              {/* Original Resume */}
-              <div className="flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-foreground">Original Resume</h3>
-                  <Badge variant="outline">Master</Badge>
-                </div>
-                <ScrollArea className="flex-1 border rounded-lg">
-                  <div className="p-4">
-                    <pre className="whitespace-pre-wrap font-mono text-xs text-muted-foreground">
-                      {masterResume}
-                    </pre>
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <Label htmlFor="jobDesc" className="mb-2">
+                  Job Description
+                </Label>
+                <Textarea
+                  id="jobDesc"
+                  value={jobDesc}
+                  onChange={(e) => setJobDesc(e.target.value)}
+                  placeholder="Paste the full job description here...
+
+Example:
+We're looking for a Senior React Developer to join our team...
+
+Requirements:
+- 5+ years of React experience
+- TypeScript proficiency
+- ..."
+                  className="flex-1 resize-none font-mono text-sm"
+                  disabled={isLoading}
+                />
+              </div>
+
+              {/* Error Display */}
+              {error && (
+                <Card className="mt-4 p-3 bg-destructive/10 border-destructive/20">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm text-destructive font-medium">Error</p>
+                      <p className="text-sm text-destructive/80">{error}</p>
+                    </div>
                   </div>
-                </ScrollArea>
-              </div>
+                </Card>
+              )}
 
-              {/* Tailored Resume */}
-              <div className="flex flex-col overflow-hidden">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-foreground">Tailored Resume</h3>
-                  <Badge className="bg-primary">AI-Optimized</Badge>
-                </div>
-                <ScrollArea className="flex-1 border rounded-lg bg-primary/5">
-                  <div className="p-4">
-                    <pre className="whitespace-pre-wrap font-mono text-xs text-foreground">
-                      {tailoredResume}
-                    </pre>
-                  </div>
-                </ScrollArea>
-              </div>
-            </div>
-          )}
-
-          {/* Changes Summary */}
-          {changes.length > 0 && (
-            <Card className="p-3 bg-muted/50">
-              <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-primary" />
-                Key Changes
-              </h4>
-              <ul className="space-y-1">
-                {changes.map((change, idx) => (
-                  <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
-                    <ArrowRight className="h-3 w-3 mt-0.5 shrink-0 text-primary" />
-                    <span>{change}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
-        </div>
-
-        {/* Footer Actions */}
-        <div className="flex items-center justify-between p-4 border-t border-border bg-muted/30">
-          {!tailoredResume ? (
-            <>
-              <p className="text-sm text-muted-foreground">
-                AI will optimize your resume for this specific job
-              </p>
+              {/* Tailor Button */}
               <Button
                 onClick={handleTailor}
-                disabled={isLoading || !jobDesc.trim()}
-                className="gap-2"
+                disabled={isLoading || !jobDesc.trim() || !jobTitle.trim() || !company.trim()}
+                className="mt-4 w-full gap-2"
+                size="lg"
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Tailoring...
+                    Tailoring Resume...
                   </>
                 ) : (
                   <>
@@ -301,25 +266,59 @@ export function TailorResumeDialog({
                   </>
                 )}
               </Button>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5">
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  {copied ? 'Copied' : 'Copy'}
-                </Button>
-                <Button variant="outline" size="sm" onClick={handleDownloadPDF} className="gap-1.5">
-                  <Download className="h-4 w-4" />
-                  Download PDF
-                </Button>
+            </div>
+
+            {/* RIGHT: Tailored Resume Output */}
+            <div className="flex flex-col p-6 overflow-hidden bg-muted/20">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-foreground">
+                  {tailoredResume ? 'Tailored Resume' : 'AI-Optimized Resume Will Appear Here'}
+                </h3>
+                {tailoredResume && (
+                  <div className="flex items-center gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleCopy}
+                      className="gap-1.5"
+                    >
+                      {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                      {copied ? 'Copied' : 'Copy'}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleDownloadPDF}
+                      className="gap-1.5"
+                    >
+                      <Download className="h-4 w-4" />
+                      PDF
+                    </Button>
+                  </div>
+                )}
               </div>
-              <Button onClick={handleApply} className="gap-2">
-                <FileText className="h-4 w-4" />
-                Apply to Application
-              </Button>
-            </>
-          )}
+
+              <ScrollArea className="flex-1 border rounded-lg bg-background">
+                <div className="p-4">
+                  {!tailoredResume ? (
+                    <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">
+                      <Sparkles className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Enter job details and description
+                      </p>
+                      <p className="text-xs text-muted-foreground max-w-sm">
+                        AI will optimize your master resume by highlighting relevant skills and experience for this specific role
+                      </p>
+                    </div>
+                  ) : (
+                    <pre className="whitespace-pre-wrap font-mono text-xs text-foreground">
+                      {tailoredResume}
+                    </pre>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
         </div>
       </Card>
     </div>

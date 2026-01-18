@@ -1,3 +1,5 @@
+// src/pages/Index.tsx
+
 import { useState } from 'react';
 import { Application, ApplicationStatus } from '@/types/application';
 import { useApplications } from '@/hooks/useApplications';
@@ -8,6 +10,7 @@ import { ApplicationList } from '@/components/ApplicationList';
 import { ApplicationForm } from '@/components/ApplicationForm';
 import { ApplicationDetail } from '@/components/ApplicationDetail';
 import { ResumeEditor } from '@/components/ResumeEditor';
+import { TailorResumeDialog } from '@/components/TailorResumeDialog';
 import { toast } from 'sonner';
 
 const Index = () => {
@@ -25,12 +28,13 @@ const Index = () => {
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
   const [showForm, setShowForm] = useState(false);
   const [showResume, setShowResume] = useState(false);
+  const [showTailor, setShowTailor] = useState(false); // NEW: Tailor dialog state
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [editingApp, setEditingApp] = useState<Application | null>(null);
 
   const handleMoveApplication = (id: string, status: ApplicationStatus) => {
-  updateApplication(id, { status });
-};
+    updateApplication(id, { status });
+  };
 
   const handleAddNew = () => {
     setEditingApp(null);
@@ -90,6 +94,7 @@ const Index = () => {
         onViewChange={setView}
         onAddNew={handleAddNew}
         onOpenResume={() => setShowResume(true)}
+        onOpenTailor={() => setShowTailor(true)} // NEW: Open tailor dialog
       />
 
       <main className="container max-w-7xl mx-auto px-4 py-6">
@@ -134,6 +139,14 @@ const Index = () => {
           resume={resume}
           onSave={updateResume}
           onClose={() => setShowResume(false)}
+        />
+      )}
+
+      {/* NEW: Tailor Resume Dialog */}
+      {showTailor && (
+        <TailorResumeDialog
+          masterResume={resume.content}
+          onClose={() => setShowTailor(false)}
         />
       )}
     </div>
