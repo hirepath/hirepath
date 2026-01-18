@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Application } from '@/types/application';
+import { Application, ApplicationStatus } from '@/types/application';
 import { useApplications } from '@/hooks/useApplications';
 import { Header } from '@/components/Header';
 import { StatsCards } from '@/components/StatsCards';
@@ -27,6 +27,10 @@ const Index = () => {
   const [showResume, setShowResume] = useState(false);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [editingApp, setEditingApp] = useState<Application | null>(null);
+
+  const handleMoveApplication = (id: string, status: ApplicationStatus) => {
+  updateApplication(id, { status });
+};
 
   const handleAddNew = () => {
     setEditingApp(null);
@@ -94,7 +98,11 @@ const Index = () => {
         </div>
 
         {view === 'kanban' ? (
-          <KanbanBoard applications={applications} onCardClick={handleCardClick} />
+          <KanbanBoard
+            applications={applications}
+            onCardClick={handleCardClick}
+            onMoveApplication={handleMoveApplication}
+          />
         ) : (
           <ApplicationList applications={applications} onCardClick={handleCardClick} />
         )}
