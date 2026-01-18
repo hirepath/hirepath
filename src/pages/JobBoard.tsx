@@ -1,113 +1,95 @@
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { JobBoard as JobBoardComponent } from '@/components/JobBoard';
+import { JobFilters } from '@/components/JobFilters';
+import { JobDetail } from '@/components/JobDetail';
+import { useJobs } from '@/hooks/useJobs';
 import { Job } from '@/types/job';
-import { JobCard } from './JobCard';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { LayoutGrid, List } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
 
-interface JobBoardProps {
-  jobs: Job[];
-  savedJobs: string[];
-  isLoading?: boolean;
-  view?: 'grid' | 'list';
-  onViewChange?: (view: 'grid' | 'list') => void;
-  onJobClick?: (job: Job) => void;
-  onSaveJob?: (job: Job) => void;
-  onRemoveJob?: (jobId: string) => void;
-  emptyMessage?: string;
-}
+export function JobBoardPage() {
+  const navigate = useNavigate();
+  const { jobs, savedJobs, isLoading, filters, fetchJobs, saveJob, removeSavedJob, updateSavedJobNotes } = useJobs();
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
-export function JobBoard({
-  jobs,
-  savedJobs,
-  isLoading,
-  view = 'grid',
-  onViewChange,
-  onJobClick,
-  onSaveJob,
-  onRemoveJob,
-  emptyMessage = 'No jobs found. Try adjusting your filters.',
-}: JobBoardProps) {
-  const isMobile = useIsMobile();
-  
-  // Force list view on mobile
-  const effectiveView = isMobile ? 'list' : view;
+  // Fetch when filters change
+  useEffect(() => {
+    fetchJobs(filters);
+  }, [filters]);
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="inline-block">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-          <p className="mt-4 text-muted-foreground">Loading jobs...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleFiltersChange = (newFilters: any) => {
+    fetchJobs(newFilters);
+  };
 
-  if (jobs.length === 0) {
-    return (
-      <Card className="bg-card border-border/50 p-12 text-center">
-        <p className="text-muted-foreground">{emptyMessage}</p>
-      </Card>
-    );
-  }
+  const savedJobIds = savedJobs.map((j) => j.id);
+
+  const filteredJobs = useMemo(() => {
+    const search = (filters.search || "").toLowerCase();
+    const location = (filters.location || "").toLowerCase();
+
+    return jobs.filter((job) => {
+      const title = job.title.toLowerCase();
+      const company = job.company.toLowerCase();
+      const loc = job.location.toLowerCase();
+
+      const matchesSearch =
+        !search ||
+        title.includes(search) ||
+        company.includes(search);
+
+      const matchesLocation =
+        !location ||
+        loc.includes(location);
+
+      return matchesSearch && matchesLocation;
+    });
+  }, [jobs, filters.search, filters.location]);
 
   return (
-    <div>
-      {/* Only show view toggle on desktop */}
-      {onViewChange && !isMobile && (
-        <div className="flex justify-end mb-4">
-          <div className="flex items-center bg-muted rounded-lg p-1">
-            <Button
-              variant={view === 'grid' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => onViewChange('grid')}
-              className="gap-1.5"
-            >
-              <LayoutGrid className="h-4 w-4" />
-              Grid
-            </Button>
-            <Button
-              variant={view === 'list' ? 'secondary' : 'ghost'}
-              size="sm"
-              onClick={() => onViewChange('list')}
-              className="gap-1.5"
-            >
-              <List className="h-4 w-4" />
-              List
-            </Button>
+    <div className="min-h-screen bg-background">
+      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border/50">
+        <div className="container max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Job Board</h1>
+            <p className="text-sm text-muted-foreground">Discover and save opportunities</p>
           </div>
-        </div>
-      )}
 
-      <div
-        className={cn(
-          'gap-4',
-          effectiveView === 'grid'
-            ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-            : 'space-y-3 flex flex-col'
-        )}
-      >
-        {jobs.map((job) => (
-          <JobCard
-            key={job.id}
-            job={job}
-            isSaved={savedJobs.includes(job.id)}
-            onSave={() => onSaveJob?.(job)}
-            onRemove={() => onRemoveJob?.(job.id)}
-            onClick={() => onJobClick?.(job)}
-          />
-        ))}
+          {/* Back Button */}
+          <button
+            className="btn"
+            onClick={() => navigate('/')}
+          >
+            Back to Home
+          </button>
+        </div>
       </div>
 
-      {jobs.length > 0 && (
-        <div className="mt-8 text-center text-sm text-muted-foreground">
-          Showing {jobs.length} job{jobs.length !== 1 ? 's' : ''}
-        </div>
+      <div className="container max-w-7xl mx-auto px-4 py-6">
+        <JobFilters filters={filters} onFiltersChange={handleFiltersChange} />
+        <JobBoardComponent
+          jobs={filteredJobs}
+          savedJobs={savedJobIds}
+          isLoading={isLoading}
+          view={view}
+          onViewChange={setView}
+          onJobClick={setSelectedJob}
+          onSaveJob={saveJob}
+          onRemoveJob={removeSavedJob}
+        />
+      </div>
+
+      {selectedJob && (
+        <JobDetail
+          job={selectedJob}
+          isSaved={savedJobIds.includes(selectedJob.id)}
+          onClose={() => setSelectedJob(null)}
+          onSave={() => saveJob(selectedJob)}
+          onRemove={() => removeSavedJob(selectedJob.id)}
+          onNotesChange={(notes) => updateSavedJobNotes(selectedJob.id, notes)}
+        />
       )}
     </div>
   );
 }
+
+export default JobBoardPage;
