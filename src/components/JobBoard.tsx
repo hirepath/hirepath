@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { LayoutGrid, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface JobBoardProps {
   jobs: Job[];
@@ -28,6 +29,11 @@ export function JobBoard({
   onRemoveJob,
   emptyMessage = 'No jobs found. Try adjusting your filters.',
 }: JobBoardProps) {
+  const isMobile = useIsMobile();
+  
+  // Force list view on mobile regardless of view prop
+  const effectiveView = isMobile ? 'list' : view;
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -51,7 +57,8 @@ export function JobBoard({
 
   return (
     <div>
-      {onViewChange && (
+      {/* Only show view toggle on desktop */}
+      {onViewChange && !isMobile && (
         <div className="flex justify-end mb-4">
           <div className="flex items-center bg-muted rounded-lg p-1">
             <Button
@@ -79,7 +86,7 @@ export function JobBoard({
       <div
         className={cn(
           'gap-4',
-          view === 'grid'
+          effectiveView === 'grid'
             ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
             : 'space-y-3 flex flex-col'
         )}
