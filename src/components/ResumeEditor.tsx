@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import * as pdfjsLib from 'pdfjs-dist';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
@@ -24,6 +25,7 @@ export function ResumeEditor({ resume, onSave, onClose }: ResumeEditorProps) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hasChanges = content !== resume.content;
+  const isMobile = useIsMobile();
 
   const handleSave = () => {
     onSave(content);
@@ -336,7 +338,7 @@ export function ResumeEditor({ resume, onSave, onClose }: ResumeEditorProps) {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className={`flex items-center ${isMobile ? 'gap-1' : 'gap-2'}`}>
             <input
               ref={fileInputRef}
               type="file"
@@ -346,23 +348,36 @@ export function ResumeEditor({ resume, onSave, onClose }: ResumeEditorProps) {
             />
             <Button
               variant="outline"
-              size="sm"
+              size={isMobile ? "icon" : "sm"}
               onClick={handleUploadClick}
               disabled={isUploading}
-              className="gap-1.5"
+              className={isMobile ? "" : "gap-1.5"}
+              title="Upload"
             >
               <Upload className="h-4 w-4" />
-              {isUploading ? 'Uploading...' : 'Upload'}
+              {!isMobile && (isUploading ? 'Uploading...' : 'Upload')}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleCopy} className="gap-1.5">
+            <Button 
+              variant="outline" 
+              size={isMobile ? "icon" : "sm"} 
+              onClick={handleCopy} 
+              className={isMobile ? "" : "gap-1.5"}
+              title="Copy"
+            >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? 'Copied' : 'Copy'}
+              {!isMobile && (copied ? 'Copied' : 'Copy')}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleDownloadPDF} className="gap-1.5">
+            <Button 
+              variant="outline" 
+              size={isMobile ? "icon" : "sm"} 
+              onClick={handleDownloadPDF} 
+              className={isMobile ? "" : "gap-1.5"}
+              title="Download PDF"
+            >
               <Download className="h-4 w-4" />
-              PDF
+              {!isMobile && 'PDF'}
             </Button>
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} title="Close">
               <X className="h-5 w-5" />
             </Button>
           </div>

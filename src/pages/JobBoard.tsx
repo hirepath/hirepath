@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';  // <-- Vite + React Router
+import { useNavigate } from 'react-router-dom';
 import { JobBoard as JobBoardComponent } from '@/components/JobBoard';
 import { JobFilters } from '@/components/JobFilters';
 import { JobDetail } from '@/components/JobDetail';
@@ -7,7 +7,7 @@ import { useJobs } from '@/hooks/useJobs';
 import { Job } from '@/types/job';
 
 export function JobBoardPage() {
-  const navigate = useNavigate(); // <-- Vite navigation
+  const navigate = useNavigate();
   const { jobs, savedJobs, isLoading, filters, fetchJobs, saveJob, removeSavedJob, updateSavedJobNotes } = useJobs();
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
