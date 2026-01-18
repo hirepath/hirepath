@@ -14,7 +14,13 @@ interface TailorResumeResponse {
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const MODEL = 'llama-3.1-70b-versatile';
+
+// Get model from env, with fallback to latest Llama 3.3
+const MODEL = import.meta.env.VITE_GROQ_MODEL || 'llama-3.3-70b-versatile';
+// Alternative models you can set in .env:
+// - llama-3.3-70b-versatile (recommended, most capable)
+// - llama-3.1-8b-instant (faster, less accurate)
+// - mixtral-8x7b-32768 (good alternative)
 
 const SYSTEM_PROMPT = `You are an expert resume writer and ATS optimization specialist. Your task is to tailor resumes to specific job descriptions while:
 
