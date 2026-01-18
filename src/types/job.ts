@@ -1,5 +1,19 @@
-export type JobLevel = 'entry' | 'mid' | 'senior' | 'lead' | 'executive';
-export type JobType = 'full-time' | 'part-time' | 'contract' | 'internship' | 'temporary';
+export type JobLevel =
+  | 'entry'
+  | 'mid'
+  | 'senior'
+  | 'lead'
+  | 'executive'
+  | string; // allow other values from Adzuna
+
+export type JobType =
+  | 'full-time'
+  | 'part-time'
+  | 'contract'
+  | 'internship'
+  | 'temporary'
+  | string; // allow other values from Adzuna
+
 export type SalaryRange = {
   min?: number;
   max?: number;
@@ -10,15 +24,18 @@ export interface Job {
   id: string;
   title: string;
   company: string;
-  description: string;
-  location: string;
-  remote: 'on-site' | 'hybrid' | 'remote';
-  jobType: JobType;
-  level: JobLevel;
+
+  // Optional fields (Adzuna might not send these)
+  description?: string;
+  location?: string;
+  remote?: 'on-site' | 'hybrid' | 'remote' | string;
+  jobType?: JobType;
+  level?: JobLevel;
+
   salaryRange?: SalaryRange;
-  tags: string[];
-  postedDate: string;
-  externalUrl: string;
+  tags?: string[];
+  postedDate?: string;
+  externalUrl?: string;
   companyLogo?: string;
   applicationCount?: number;
 }
@@ -31,7 +48,7 @@ export interface SavedJob extends Job {
 export interface JobFilters {
   search?: string;
   location?: string;
-  remote?: ('on-site' | 'hybrid' | 'remote')[];
+  remote?: ('on-site' | 'hybrid' | 'remote' | string)[];
   jobType?: JobType[];
   level?: JobLevel[];
   salaryMin?: number;
